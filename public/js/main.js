@@ -3,39 +3,60 @@ class ChatInterface {
         this.storage = new StorageManager();
         this.currentConversation = null;
         this.isProcessing = false;
-        this.githubAnalyzer = new GitHubAnalyzer();
-        
         this.initializeInterface();
-        this.initializeGitHubAnalyzer();
     }
 
-    async initializeInterface() {
-        // Клонируем и вставляем шаблон чата
-        const template = document.getElementById('chatTemplate');
-        const chatContent = template.content.cloneNode(true);
-        document.getElementById('app').appendChild(chatContent);
-
+    initializeInterface() {
+        this.createLayout();
         this.bindEvents();
-        await this.loadConversations();
+        this.loadConversations();
         
         // Восстанавливаем последнюю активную беседу
         const lastConversationId = localStorage.getItem('lastActiveConversation');
         if (lastConversationId) {
-            await this.loadConversation(lastConversationId);
+            this.loadConversation(lastConversationId);
         } else {
             this.startNewChat();
         }
     }
 
+    createLayout() {
+        document.body.innerHTML = `
+            <div class="chat-container">
+                <div class="sidebar">
+                    <button id="newChat" class="new-chat-btn">New Chat</button>
+                    <div class="history-list" id="historyList"></div>
+                </div>
+                <div class="main-chat">
+                    <div class="chat-messages" id="chatMessages"></div>
+                    <div class="input-area">
+                        <textarea 
+                            id="userInput" 
+                            placeholder="Type your message... (Shift + Enter for new line)"
+                            rows="1"
+                        ></textarea>
+                        <button id="sendButton" class="send-button">Send</button>
+                    </div>
+                </div>
+                <div class="code-panel">
+                    <div class="code-actions">
+                        <button id="copyCode">Copy Code</button>
+                        <button id="runCode">Run Code</button>
+                    </div>
+                    <pre id="codeOutput"></pre>
+                </div>
+            </div>
+        `;
+    }
+
     bindEvents() {
-        // Основные элементы управления
         document.getElementById('sendButton').onclick = () => this.sendMessage();
         document.getElementById('newChat').onclick = () => this.startNewChat();
-        document.getElementById('exportHistory').onclick = () => this.exportHistory();
-        document.getElementById('importHistory').onclick = () => this.importHistory();
+        document.getElementById('copyCode').onclick = () => this.copyLastCode();
+        document.getElementById('runCode').onclick = () => this.runLastCode();
 
-        // Обработка ввода
         const userInput = document.getElementById('userInput');
+        
         userInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -49,10 +70,6 @@ class ChatInterface {
             userInput.style.height = userInput.scrollHeight + 'px';
         });
 
-        // Обработка кода
-        document.getElementById('copyCode').onclick = () => this.copyLastCode();
-        document.getElementById('runCode').onclick = () => this.runLastCode();
-
         // Обработка вставки кода
         document.addEventListener('paste', (e) => {
             if (e.target === userInput) {
@@ -64,13 +81,11 @@ class ChatInterface {
                 }
             }
         });
+    }
 
-        // Обработка прокрутки
-        const chatMessages = document.getElementById('chatMessages');
-        chatMessages.addEventListener('scroll', () => {
-            const isAtBottom = chatMessages.scrollHeight - chatMessages.scrollTop === chatMessages.clientHeight;
-            this.autoScroll = isAtBottom;
-        });
+    formatCodeInput(text) {
+        // Добавляем отступы для кода
+        return text.split('\n').map(line => '    ' + line).join('\n');
     }
 
     async sendMessage() {
@@ -88,7 +103,6 @@ class ChatInterface {
         input.value = '';
         input.style.height = 'auto';
         this.isProcessing = true;
-        this.showLoading();
 
         try {
             // Добавляем сообщение пользователя
@@ -126,7 +140,6 @@ class ChatInterface {
             this.renderMessages();
         } finally {
             this.isProcessing = false;
-            this.hideLoading();
         }
     }
 
@@ -134,9 +147,7 @@ class ChatInterface {
         const lastMessage = document.querySelector('.message.assistant:last-child .message-content');
         if (lastMessage) {
             lastMessage.innerHTML = marked(content);
-            if (this.autoScroll) {
-                this.scrollToBottom();
-            }
+            this.scrollToBottom();
         }
     }
 
@@ -157,19 +168,42 @@ class ChatInterface {
                         <div class="code-header">
                             <span class="code-language">${language}</span>
                         </div>
-                        <pre><code class="language-${language}">${this.escapeHtml(code)}</code></pre>
+                        <pre><code>${this.escapeHtml(code)}</code></pre>
                     </div>
                 `;
             }).join('\n');
-
-            // Подсветка синтаксиса
-            Prism.highlightAllUnder(codeOutput);
         } else {
             codeOutput.innerHTML = '<div class="no-code">No code blocks in current message</div>';
         }
     }
 
-    async loadConversations() {
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    copyLastCode() {
+        const codeBlock = document.querySelector('.code-block code');
+        if (codeBlock) {
+            navigator.clipboard.writeText(codeBlock.textContent)
+                .then(() => this.showNotification('Code copied to clipboard!'))
+                .catch(err => this.showError('Failed to copy code'));
+        }
+    }
+
+    async runLastCode() {
+        const codeBlock = document.querySelector('.code-block code');
+        if (!codeBlock) return;
+
+        const code = codeBlock.textContent;
+        const language = codeBlock.parentElement.parentElement.dataset.language;
+
+        // Здесь можно добавить выполнение кода для разных языков
+        this.showNotification('Code execution not implemented yet');
+    }
+
+    loadConversations() {
         const conversations = this.storage.getConversations();
         this.updateHistoryList(conversations);
     }
@@ -181,18 +215,14 @@ class ChatInterface {
         historyList.innerHTML = conversations.map(conv => `
             <div class="history-item ${conv.id === this.currentConversation?.id ? 'active' : ''}" 
                  data-id="${conv.id}">
-                <div class="history-content">
-                    <div class="history-title">${conv.title}</div>
-                    <div class="history-date">
-                        ${new Date(conv.lastUpdated).toLocaleDateString()}
-                        ${new Date(conv.lastUpdated).toLocaleTimeString()}
-                    </div>
+                <div class="history-title">${conv.title}</div>
+                <div class="history-date">
+                    ${new Date(conv.lastUpdated).toLocaleDateString()}
+                    ${new Date(conv.lastUpdated).toLocaleTimeString()}
                 </div>
-                <button class="delete-btn" data-id="${conv.id}">
-                    <svg class="icon" viewBox="0 0 24 24">
-                        <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                    </svg>
-                </button>
+                <div class="history-actions">
+                    <button class="delete-btn" data-id="${conv.id}">×</button>
+                </div>
             </div>
         `).join('');
 
@@ -213,70 +243,18 @@ class ChatInterface {
         });
     }
 
-    // Утилиты
-    showLoading() {
-        document.getElementById('loadingOverlay').classList.remove('hidden');
-    }
-
-    hideLoading() {
-        document.getElementById('loadingOverlay').classList.add('hidden');
-    }
-
-    showNotification(message, type = 'info') {
-        const notification = document.createElement('div');
-        notification.className = `notification ${type}`;
-        notification.textContent = message;
-        
-        const container = document.getElementById('notificationContainer');
-        container.appendChild(notification);
-        
-        setTimeout(() => {
-            notification.classList.add('fade-out');
-            setTimeout(() => notification.remove(), 300);
-        }, 3000);
-    }
-
-    showError(message) {
-        this.showNotification(message, 'error');
-    }
-
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
-    scrollToBottom() {
-        const chatMessages = document.getElementById('chatMessages');
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-
-    formatCodeInput(text) {
-        return text.split('\n').map(line => '    ' + line).join('\n');
-    }
-
-    // Работа с историей
     startNewChat() {
         this.currentConversation = new Conversation();
         localStorage.setItem('lastActiveConversation', this.currentConversation.id);
         this.renderMessages();
         this.updateHistoryList();
-        document.getElementById('codeOutput').innerHTML = '';
     }
 
-    async loadConversation(id) {
+    loadConversation(id) {
         this.currentConversation = this.storage.getConversationById(id);
         localStorage.setItem('lastActiveConversation', id);
         this.renderMessages();
         this.updateHistoryList();
-        
-        // Извлекаем код из последнего сообщения ассистента
-        const lastAssistantMessage = this.currentConversation.messages
-            .filter(m => m.role === 'assistant')
-            .pop();
-        if (lastAssistantMessage) {
-            this.extractAndDisplayCode(lastAssistantMessage.content);
-        }
     }
 
     deleteConversation(id) {
@@ -288,75 +266,6 @@ class ChatInterface {
             } else {
                 this.updateHistoryList();
             }
-        }
-    }
-
-    exportHistory() {
-        const data = this.storage.exportHistory();
-        const blob = new Blob([data], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `chat-history-${new Date().toISOString().slice(0, 10)}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        
-        this.showNotification('History exported successfully!');
-    }
-
-    async importHistory() {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.json';
-        
-        input.onchange = async (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                try {
-                    const text = await file.text();
-                    if (this.storage.importHistory(text)) {
-                        this.showNotification('History imported successfully!');
-                        this.loadConversations();
-                        this.startNewChat();
-                    } else {
-                        this.showError('Invalid history file format');
-                    }
-                } catch (error) {
-                    this.showError('Error importing history');
-                }
-            }
-        };
-
-        input.click();
-    }
-
-    // Работа с кодом
-    copyLastCode() {
-        const codeBlock = document.querySelector('.code-block code');
-        if (codeBlock) {
-            navigator.clipboard.writeText(codeBlock.textContent)
-                .then(() => this.showNotification('Code copied to clipboard!'))
-                .catch(err => this.showError('Failed to copy code'));
-        }
-    }
-
-    async runLastCode() {
-        const codeBlock = document.querySelector('.code-block code');
-        if (!codeBlock) return;
-
-        const code = codeBlock.textContent;
-        const language = codeBlock.parentElement.parentElement.dataset.language;
-
-        try {
-            this.showNotification('Running code...', 'info');
-            // Здесь можно добавить выполнение кода для разных языков
-            // Например, через WebAssembly или внешние сервисы
-            this.showNotification('Code execution not implemented yet');
-        } catch (error) {
-            this.showError(`Error executing code: ${error.message}`);
         }
     }
 
@@ -373,7 +282,7 @@ class ChatInterface {
                     <div class="message-actions">
                         ${msg.role === 'assistant' ? `
                             <button class="copy-btn" title="Copy message">
-                                <svg class="icon" viewBox="0 0 24 24">
+                                <svg width="16" height="16" viewBox="0 0 24 24">
                                     <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
                                 </svg>
                             </button>
@@ -394,9 +303,92 @@ class ChatInterface {
             };
         });
 
-        if (this.autoScroll) {
-            this.scrollToBottom();
+        this.scrollToBottom();
+    }
+
+    scrollToBottom() {
+        const chatMessages = document.getElementById('chatMessages');
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.classList.add('fade-out');
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
+
+    showError(message) {
+        this.showNotification(message, 'error');
+    }
+
+    // Утилиты для работы с кодом
+    formatCode(code, language) {
+        // Здесь можно добавить форматирование кода для разных языков
+        return code.trim();
+    }
+
+    // Экспорт/импорт истории
+    exportHistory() {
+        const data = this.storage.exportHistory();
+        const blob = new Blob([data], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `chat-history-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    async importHistory() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        
+        input.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                try {
+                    const text = await file.text();
+                    if (this.storage.importHistory(text)) {
+                        this.showNotification('History imported successfully!');
+                        this.loadConversations();
+                    } else {
+                        this.showError('Invalid history file format');
+                    }
+                } catch (error) {
+                    this.showError('Error importing history');
+                }
+            }
+        };
+
+        input.click();
+    }
+
+    // Добавление тегов к беседе
+    addTag(tag) {
+        if (this.currentConversation) {
+            this.currentConversation.addTag(tag);
+            this.storage.saveConversation(this.currentConversation);
+            this.updateHistoryList();
         }
+    }
+
+    // Поиск по истории
+    searchConversations(query) {
+        const conversations = this.storage.getConversations();
+        return conversations.filter(conv => {
+            const searchText = `${conv.title} ${conv.messages.map(m => m.content).join(' ')}`.toLowerCase();
+            return searchText.includes(query.toLowerCase());
+        });
     }
 }
 
