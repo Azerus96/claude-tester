@@ -157,4 +157,141 @@ class GitHubAnalyzer {
                 .map(line => line.trim());
         }
 
-        // Проверка на тип
+
+        // Проверка на типичные проблемы
+        analysis.potentialIssues = await this.checkCommonIssues(files, analysis);
+
+        return analysis;
+    }
+
+    async checkCommonIssues(files, analysis) {
+        const issues = [];
+
+        // Проверка конфигурационных файлов
+        if (!files.some(f => f.name === '.gitignore')) {
+            issues.push({
+                type: 'missing-file',
+                severity: 'warning',
+                message: 'Missing .gitignore file'
+            });
+        }
+
+        if (!files.some(f => f.name.toLowerCase().includes('readme'))) {
+            issues.push({
+                type: 'missing-file',
+                severity: 'warning',
+                message: 'Missing README file'
+            });
+        }
+
+        // Проверка структуры проекта
+        const hasTests = files.some(f => f.path.includes('test') || f.path.includes('spec'));
+        if (!hasTests) {
+            issues.push({
+                type: 'missing-tests',
+                severity: 'warning',
+                message: 'No test files found'
+            });
+        }
+
+        // Проверка зависимостей
+        if (analysis.dependencies.npm) {
+            const pkg = analysis.dependencies.npm;
+            if (pkg.dependencies && !pkg.devDependencies) {
+                issues.push({
+                    type: 'dependencies',
+                    severity: 'info',
+                    message: 'No development dependencies specified'
+                });
+            }
+        }
+
+        return issues;
+    }
+
+    async fetchFileContent(url) {
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `token ${this.accessToken}`,
+                'Accept': 'application/vnd.github.v3.raw'
+            }
+        });
+        return await response.text();
+    }
+
+    createAnalysisMessage(repoInfo, analysis, packageFiles) {
+        return `Please analyze this GitHub repository:
+
+Repository: ${repoInfo.owner}/${repoInfo.repo}
+
+Project Statistics:
+- Total Files: ${analysis.totalFiles}
+- File Types: ${JSON.stringify(analysis.fileTypes)}
+- Dependencies: ${JSON.stringify(analysis.dependencies)}
+- Potential Issues: ${JSON.stringify(analysis.potentialIssues)}
+
+Please provide:
+1. Project structure analysis
+2. Potential problems and their solutions
+3. Security concerns
+4. Performance optimization suggestions
+5. Best practices recommendations
+6. Startup issues if any
+7. Code quality assessment
+
+Focus on practical solutions and specific improvements.`;
+    }
+
+    displayAnalysisResults(response, analysis) {
+        const results = document.getElementById('analysisResults');
+        results.innerHTML = `
+            <div class="analysis-section">
+                <h4>Project Overview</h4>
+                <div class="stats">
+                    <div class="stat-item">
+                        <span class="stat-label">Total Files:</span>
+                        <span class="stat-value">${analysis.totalFiles}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">File Types:</span>
+                        <div class="file-types">
+                            ${Object.entries(analysis.fileTypes)
+                                .map(([ext, count]) => `
+                                    <span class="file-type">
+                                        ${ext}: ${count}
+                                    </span>
+                                `).join('')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="analysis-section">
+                <h4>AI Analysis</h4>
+                <div class="ai-response">${marked(response)}</div>
+            </div>
+            <div class="analysis-section">
+                <h4>Potential Issues</h4>
+                <div class="issues-list">
+                    ${analysis.potentialIssues.map(issue => `
+                        <div class="issue-item ${issue.severity}">
+                            <span class="issue-severity">${issue.severity}</span>
+                            <span class="issue-message">${issue.message}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    showError(message) {
+        const results = document.getElementById('analysisResults');
+        results.innerHTML = `
+            <div class="error-message">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                </svg>
+                <span>${message}</span>
+            </div>
+        `;
+    }
+}
