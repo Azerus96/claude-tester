@@ -3,121 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced Claude Chat Interface</title>
-    
-    <!-- Styles -->
+    <title>Claude Chat Interface</title>
     <link rel="stylesheet" href="public/css/styles.css">
-    <link rel="stylesheet" href="public/css/github-analyzer.css">
-    
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
-    
-    <!-- External Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://js.puter.com/v2/"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prismjs/1.24.1/prism.min.js"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/prismjs/1.24.1/themes/prism-tomorrow.min.css" rel="stylesheet">
 </head>
 <body>
-    <div id="app">
-        <!-- App content will be dynamically inserted by JavaScript -->
-    </div>
-
-    <!-- Loading indicator -->
-    <div id="loadingOverlay" class="loading-overlay hidden">
-        <div class="loading-spinner"></div>
-        <div class="loading-text">Processing...</div>
-    </div>
-
-    <!-- Notification container -->
-    <div id="notificationContainer" class="notification-container"></div>
-
-    <!-- Templates -->
-    <template id="chatTemplate">
-        <div class="chat-container">
-            <!-- Sidebar -->
-            <div class="sidebar">
-                <div class="sidebar-header">
-                    <button id="newChat" class="new-chat-btn">
-                        <svg class="icon" viewBox="0 0 24 24">
-                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-                        </svg>
-                        New Chat
-                    </button>
-                </div>
-                <div class="history-list" id="historyList"></div>
-                <div class="sidebar-footer">
-                    <button id="exportHistory" class="footer-btn">Export History</button>
-                    <button id="importHistory" class="footer-btn">Import History</button>
-                </div>
-            </div>
-
-            <!-- Main Chat Area -->
-            <div class="main-chat">
-                <div class="chat-messages" id="chatMessages"></div>
-                <div class="input-area">
-                    <textarea 
-                        id="userInput" 
-                        placeholder="Type your message... (Shift + Enter for new line)"
-                        rows="1"
-                    ></textarea>
-                    <button id="sendButton" class="send-button">
-                        <svg class="icon" viewBox="0 0 24 24">
-                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Code Panel -->
-            <div class="code-panel">
-                <div class="code-panel-header">
-                    <h3>Code Snippets</h3>
-                    <div class="code-actions">
-                        <button id="copyCode" class="code-btn">
-                            <svg class="icon" viewBox="0 0 24 24">
-                                <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-                            </svg>
-                            Copy
-                        </button>
-                        <button id="runCode" class="code-btn">
-                            <svg class="icon" viewBox="0 0 24 24">
-                                <path d="M8 5v14l11-7z"/>
-                            </svg>
-                            Run
-                        </button>
-                    </div>
-                </div>
-                <div id="codeOutput" class="code-output"></div>
-            </div>
-        </div>
-    </template>
-
-    <!-- GitHub Analysis Template -->
-    <template id="githubAnalysisTemplate">
-        <div class="github-analysis-modal">
-            <div class="modal-header">
-                <h2>GitHub Repository Analysis</h2>
-                <button class="close-btn">&times;</button>
-            </div>
-            <div class="modal-content">
-                <div class="repo-input-section">
-                    <input type="text" id="repoUrl" placeholder="Enter GitHub repository URL">
-                    <button id="analyzeRepo">Analyze</button>
-                </div>
-                <div id="analysisResults" class="analysis-results"></div>
-            </div>
-        </div>
-    </template>
-
-    <!-- Scripts -->
     <script src="public/js/storage.js"></script>
     <script src="public/js/conversation.js"></script>
-    <script src="public/js/github-analyzer.js"></script>
     <script src="public/js/main.js"></script>
-    
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             window.chatInterface = new ChatInterface();
