@@ -4,18 +4,76 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Claude Chat Interface</title>
-    <link rel="stylesheet" href="public/css/styles.css">
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="https://js.puter.com/v2/"></script>
+    <style>
+        /* Существующие стили */
+        .history-list {
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .code-block {
+            position: relative;
+            background: #1e1e1e;
+            color: #fff;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+
+        .copy-button {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            padding: 5px 10px;
+            background: #333;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .follow-up {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+
+        .follow-up textarea {
+            width: 100%;
+            min-height: 60px;
+            margin-top: 5px;
+        }
+    </style>
 </head>
 <body>
-    <script src="public/js/storage.js"></script>
-    <script src="public/js/conversation.js"></script>
-    <script src="public/js/main.js"></script>
+    <div class="chat-container">
+        <div class="sidebar">
+            <button id="newChat" class="new-chat-btn">New Chat</button>
+            <div id="historyList" class="history-list"></div>
+        </div>
+
+        <div class="main-chat">
+            <div id="chatMessages" class="chat-messages"></div>
+            
+            <div class="input-area">
+                <textarea 
+                    id="userInput" 
+                    placeholder="Type your message... (Shift + Enter for new line)"
+                    rows="1"
+                ></textarea>
+                <button onclick="chatInterface.sendMessage()" class="new-chat-btn">Send</button>
+                <div id="loading" class="loading">Processing...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://js.puter.com/v2/"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            window.chatInterface = new ChatInterface();
-        });
+        const MAX_HISTORY = 100; // Увеличиваем лимит истории
     </script>
+    <script src="public/js/main.js"></script>
 </body>
 </html>
